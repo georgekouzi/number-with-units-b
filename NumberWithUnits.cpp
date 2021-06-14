@@ -7,46 +7,44 @@ using namespace std;
 #include "NumberWithUnits.hpp"
 namespace ariel
 {
-    unordered_map<string, map<string,double>> NumberWithUnits::converting_units;
+    unordered_map<string, unordered_map<string, double>> NumberWithUnits::converting_units;
 
-    double NumberWithUnits::Conversion_function(string f, string s)
+    double NumberWithUnits::Conversion_function(const string &f, const string &s)
     {
-
-        map<string, double> convert;
-        stack<string> st;
-        st.push(f);
-        convert[f] = 1;
-        while (!st.empty())
+        if (f == s)
         {
-            string curr_key = st.top();
-            st.pop();
-            for (pair<string,double> curr_pair : NumberWithUnits::converting_units[curr_key])
-            {
-                if (convert.find(curr_pair.first) == convert.end() && NumberWithUnits::converting_units.find(curr_pair.first) != NumberWithUnits::converting_units.end())
-                {
-                    st.push(curr_pair.first);
-                }
-                convert[curr_pair.first] = curr_pair.second * convert[curr_key];
-                if (curr_pair.first == s)
-                {
-                    return convert[curr_pair.first];
-                }
-            }
+            return 1;
+        };
+
+        unordered_map<string, unordered_map<string, double>>::iterator it;
+        unordered_map<string, double>::iterator it1;
+
+        it = converting_units.find(s);
+        if (it == converting_units.end())
+        {
+            throw invalid_argument("NO convertion");
         }
 
-        return 0;
-    }
+        it1 = converting_units[s].find(f);
 
-    
+        if (it1 == converting_units[s].end())
+        {
+            throw invalid_argument("NO convertion");
+        }
+
+        double newval = converting_units[s][f];
+        // cout << "fffffffffff " << newval << endl;
+
+        return newval;
+    }
 
     NumberWithUnits operator+(const NumberWithUnits &first_NumberW_Units, const NumberWithUnits &second_NumberW_Units)
     {
-        
 
-        double down = NumberWithUnits::Conversion_function(first_NumberW_Units.unit, second_NumberW_Units.unit);
-        if (down != 0)
+        double value = NumberWithUnits::Conversion_function(first_NumberW_Units.unit, second_NumberW_Units.unit);
+        if (value != 0)
         {
-            return NumberWithUnits(first_NumberW_Units.number + (second_NumberW_Units.number * down), first_NumberW_Units.unit);
+            return NumberWithUnits(first_NumberW_Units.number + (second_NumberW_Units.number * value), first_NumberW_Units.unit);
         }
         else
         {
@@ -76,18 +74,16 @@ namespace ariel
     {
 
         double down = NumberWithUnits::Conversion_function(first_NumberW_Units.unit, second_NumberW_Units.unit);
-        if (down != 0)
+        if (abs(first_NumberW_Units.number - (second_NumberW_Units.number * down)) < 0.0001)
         {
-            return (first_NumberW_Units.number == (second_NumberW_Units.number * down));
+          
+            return true;
         }
         else
         {
 
-            throw invalid_argument("Units do not match - [" + second_NumberW_Units.unit + "] cannot be converted to [" + first_NumberW_Units.unit + "]");
+            return (first_NumberW_Units.number == (second_NumberW_Units.number * down));
         }
-    
-    
-    
     }
     bool operator!=(const NumberWithUnits &first_NumberW_Units, const NumberWithUnits &second_NumberW_Units)
     {
@@ -147,7 +143,7 @@ namespace ariel
     bool operator>(const NumberWithUnits &first_NumberW_Units, const NumberWithUnits &second_NumberW_Units)
     {
 
-        double down = NumberWithUnits::Conversion_function(second_NumberW_Units.unit, first_NumberW_Units.unit);
+        double down = NumberWithUnits::Conversion_function(first_NumberW_Units.unit, second_NumberW_Units.unit);
         if (down != 0)
         {
             return (first_NumberW_Units.number > (second_NumberW_Units.number * down));
@@ -192,42 +188,21 @@ namespace ariel
 
     istream &operator>>(istream &input, NumberWithUnits &NumberW_Units)
     {
-
-        //---------------------------------------------
-        // Does not check format
-        //---------------------------------------------
-        // char ch;
-        // return (input >> c._re >> ch >> c._im >> ch);
-        //---------------------------------------------
-
-        //---------------------------------------------
-        // Checks format, with rewind on failure.
-        //---------------------------------------------
-        string number;
+  char left='[',right=']';
+        double num=0;
         string unit;
-
-        // remember place for rewinding
-        ios::pos_type startPosition = input.tellg();
-
-        if ((!(input >> number)) ||
-            (!getAndCheckNextCharIs(input, '[')) ||
-            (!(input >> unit)) ||
-            (!(getAndCheckNextCharIs(input, ']'))))
+        input >> num >> left >> unit;
+        if(unit.find(right)==string::npos)
         {
-
-            // rewind on error
-            auto errorState = input.rdstate(); // remember error state
-            input.clear();                     // clear error so seekg will work
-            input.seekg(startPosition);        // rewind
-            input.clear(errorState);           // set back the error flag
-            throw invalid_argument("Units do not match - cannot be converted ");
+            input>>right;
         }
-        else
+        unit = unit.substr(0, unit.find(right));
+        if(NumberWithUnits::converting_units.count(unit)==0)
         {
-            NumberW_Units.number = stod(number);
-            NumberW_Units.unit = unit;
+            throw invalid_argument("unit doesn't exist in map");
         }
-
+        NumberW_Units.number=num;
+        NumberW_Units.unit=unit;
         return input;
         //---------------------------------------------
     }
@@ -240,42 +215,58 @@ namespace ariel
         {
             istringstream key_val(newLine);
             string Word;
-            string key;
+            string key1;
+            string key2;
+            double val1;
+            double val2;
+            // pair<double, string> value;
+            // bool equ = false;
+            key_val >> Word; //1
+            val1 = stod(Word);
+            key_val >> Word; //km
+            key1 = Word;
+            key_val >> Word; //=
+            key_val >> Word; //1000
+            val2 = stod(Word);
+            key_val >> Word; // m
+            key2 = Word;
 
-            pair<double, string> value;
-            bool equ = false;
+            converting_units[key1][key2] = val2 / val1;
+            converting_units[key2][key1] = (val1 / val2);
 
-            while (key_val >> Word)
+            for (auto &map : converting_units[key2])
             {
-
-                if (!equ && Word != "=" && Word != "1")
+                if (key1 != map.first)
                 {
-                    key = Word;
-                }
-                else if (Word == "=")
-                {
-                    key_val >> Word;
-                    value.first = stod(Word);
-                    key_val >> Word;
-                    value.second = Word;
+                    // cout << key1 << " 3 " << map.first << " " << converting_units[key1][key2] << " " << map.second << endl;
 
-                    equ = true;
-                }
+                    converting_units[key1][map.first] = converting_units[key1][key2] * map.second;
+                    // cout << map.first << " 4 " << key1 << " " << 1 << " " << converting_units[key1][map.first] << endl;
 
-                // cout << key << endl;
+                    converting_units[map.first][key1] = 1 / converting_units[key1][map.first];
+                }
             }
-            converting_units[key][value.second] = value.first;
-            unordered_map<string, pair<double, string>>::iterator it;
-
-            // it = converting_units.find(value.second);
-
-            // if (it == converting_units.end())
-            // {
-            //     converting_units[value.second] = {};
-            // }
-
-            // cout << key << " = " << converting_units[key].first << " " << converting_units[key].second << endl;
+            for (auto &map : converting_units[key1])
+            {
+                if (key2 != map.first)
+                {
+                    // cout << key2 << " 5 " << map.first << " " << converting_units[key2][key1] << " " << map.second<< " " <<<< endl;
+                    converting_units[key2][map.first] = converting_units[key2][key1] * map.second;
+                    // cout << map.first << " 6 " << key2 << " " << 1 << " " << converting_units[key2][map.first] << endl;
+                    converting_units[map.first][key2] = 1 / converting_units[key2][map.first];
+                }
+            }
+            // cout << key1 << " " << key2 << " " << converting_units[key1][key2] << endl;
+            // cout << key2 << " " << key1 << " " << converting_units[key2][key1] << endl;
         }
-    }
 
+        // for (auto &map : converting_units)
+        // {
+        //     // cout << key1 << " " << key2 << " " << converting_units[key1][key2] << endl;
+        //     for (auto &map1 : map.second)
+        //     {
+        //         cout << map.first << " " << map1.first << " " << map1.second << endl;
+        //     }
+        // }
+    }
 } // namespace ariel

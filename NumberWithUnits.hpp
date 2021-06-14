@@ -12,8 +12,8 @@ namespace ariel
     class NumberWithUnits
     {
     private:
-        static unordered_map<string, map<string, double>> converting_units;
-        long number;
+        static unordered_map<string, unordered_map<string, double>> converting_units;
+        double number;
         string unit;
 
     public:
@@ -23,7 +23,8 @@ namespace ariel
             {
                 throw invalid_argument("Units must be initialized");
             }
-            unordered_map<string, map<string, double>>::iterator it;
+
+            unordered_map<string, unordered_map<string, double>>::iterator it;
             it = converting_units.find(unit);
 
             if (it == converting_units.end())
@@ -33,7 +34,7 @@ namespace ariel
         };
 
         static void read_units(ifstream &read);
-        static double Conversion_function(string, string);
+        static double Conversion_function(const string &f, const string &s);
 
         double getNumber() const
         {
@@ -91,6 +92,20 @@ namespace ariel
             return NumberWithUnits(-number, unit);
         }
         friend NumberWithUnits operator-(const NumberWithUnits &first_NumberW_Units, const NumberWithUnits &second_NumberW_Units);
+        bool operator==(const NumberWithUnits &second_NumberW_Units)
+        {
+            double down = Conversion_function(unit, second_NumberW_Units.unit);
+            if (abs(number - (second_NumberW_Units.number * down)) < 0.0001)
+            {
+                
+                return true;
+            }
+            else
+            {
+
+                return (number == (second_NumberW_Units.number * down));
+            }
+        }
 
         ////////////////////////////Logical//////////////////////////////////////////
         friend bool operator==(const NumberWithUnits &first_NumberW_Units, const NumberWithUnits &second_NumberW_Units);
